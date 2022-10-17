@@ -1,22 +1,16 @@
 double **create_list(int n,FILE *f)
 {
-    double **list,x,y;
+    double **list;
     int i;
     list=malloc(n*sizeof(double*));
     for (i=0;i<n;i++)
     {
-        list[i]=malloc(6*sizeof(double));
+        list[i]=malloc(7*sizeof(double));
         fscanf(f,"%lf %lf %lf",&list[i][2],&list[i][0],&list[i][1]);
-        if (i==0)
-        {
-            x=list[0][0];
-            y=list[0][1];
-        }
-        list[i][0]-=x;
-        list[i][1]-=y;
         list[i][3]=-1;
         list[i][4]=0;
         list[i][5]=-1;
+        list[i][6]=-1;
     }
     return list;
 }
@@ -39,36 +33,18 @@ void delete_n(int **note,int n)
     free(aux);
 }
 
-/*int **create_graph(int n)
-{
-    int **graph;
-    int i,j;
-    graph=malloc(n*sizeof(int*));
-    for (i=0;i<n;i++)
-    {
-        graph[i]=malloc(n*sizeof(int));
-        graph[i][i]=-1;
-    }
-    for (i=0;i<n-1;i++)
-        for (j=i+1;j<n;j++)
-    {
-        graph[i][j]=0;
-        graph[j][i]=graph[i][j];
-    }
-    return graph;
-}
-*/
 double distance(double **l,int i,int j)
 {
     return sqrt(pow(l[j][0]-l[i][0],2)+pow(l[j][1]-l[i][1],2));
 }
 
-void max_count(int **note,double **l,int n,int c)
+void max_count(int **note,double **l,int n,int c,int var)
 {
     double d,dist=-1,dm=-1;
     int i;
     for (i=0;i<n;i++)
-        if ((i!=c)&&(l[i][4]!=2)&&(note[c][0]!=i))
+        if ((i!=c)&&(l[i][4]!=2)&&((l[i][6]==var)||(l[i][6]==-1))
+        &&(note[c][0]!=i))
         {
             d=distance(l,c,i);
             if (dist<d)
@@ -80,16 +56,16 @@ void max_count(int **note,double **l,int n,int c)
     l[c][5]=dm;
 }
 
-int search_start(double **l,int n)
+int search_start(double **l,int n,int var)
 {
     int i,res=-2;
     double dist=-1;
     for (i=0;i<n;i++)
     {   
-        if (l[i][4]==2)
+        if ((l[i][4]==2)||((l[i][6]!=var)&&(l[i][6]!=-1)))
             continue;
         if ((dist<l[i][3])||((dist==l[i][3])
-        &&(l[res][2]<l[i][2])))
+        &&(l[res][5]>l[i][5])))
         {  
             dist=l[i][3];
             res=i;
@@ -132,13 +108,14 @@ int check_cycle(int **note,double **l,int n,int c1,int c)
         return 0;
 }
 
-int search_min(int **note,double **l,int n,int c,double *len)
+int search_min(int **note,double **l,int n,int c,double *len,int var)
 {
     int i,res=-2;
     double d,dist=-1;
     for (i=0;i<n;i++)
     {
-        if ((i==c)||(l[i][4]==2)||(note[c][0]==i))
+        if ((i==c)||(l[i][4]==2)||(note[c][0]==i)
+        ||((l[i][6]!=var)&&(l[i][6]!=-1)))
             continue;
         d=distance(l,c,i);
         if (((dist==-1)||(dist>d))
@@ -152,9 +129,9 @@ int search_min(int **note,double **l,int n,int c,double *len)
     {
 //        dist=distance(l,c,res);
         if ((l[res][3]==dist)||(l[res][5]==dist))
-            max_count(note,l,n,res);
+            max_count(note,l,n,res,var);
         if ((l[c][3]==dist)||(l[c][5]==dist))
-            max_count(note,l,n,c);
+            max_count(note,l,n,c,var);
         *len+=dist;
         l[c][4]++;
         l[res][4]++;
@@ -207,11 +184,11 @@ int triangle(int **note,double **l,int i,int var,double *len)
     return res;
 }
 
-int optimization(int **note,double **l,int n,double *len,int i)
+int optimization(int **note,double **l,int n,double *len,int i,int var)
 {
     int j,r1,r2,r3,r4,res=0;
     double R1,R2;
-    if (l[i][4]!=2)
+    if ((l[i][4]!=2)||((l[i][6]!=var)&&(l[i][6]!=-1)))
             return 0;
     for (j=0;j<n;j++)
     {
@@ -473,36 +450,158 @@ int check_res(double **l,int **note,int *note0,int n,int v,int cap)
     return 0;
 }
 
+void exchange(int **list,int l,int r,int var)
+{
+    int temp,i;
+    temp=list[r][0];
+    list[r][0]=list[l][0];
+    list[l][0]=temp;
+    temp=list[r][1];
+    list[r][1]=list[l][1];
+    list[l][1]=temp;
+    if (var==0)
+    {
+        for (i=2;(list[r][i]!=-1)||(list[l][i]!=-1);i++)
+        {
+            temp=list[r][i];
+            list[r][i]=list[l][i];
+            list[l][i]=temp;
+        }
+    }
+}
+
+void sort_q(int left,int right,int **list,int var)
+{
+    int l=left,r=right;
+    int ref=list[(r+l)/2][var];
+    while (l<=r)
+    {
+        while (list[l][var]<ref)
+            l++;
+        while (list[r][var]>ref)
+            r--;
+        if (l<=r)
+        {
+            exchange(list,l,r,var);
+            l++;
+            r--;
+        }
+    }
+    if (left<r)
+        sort_q(left,r,list,var);
+    if (right>l)
+        sort_q(l,right,list,var);
+}
+
+void group_tsp(double **l,int **group,int **note,int n,double *len,int vert)
+{
+    int k1,k2,c,fin,ne,i,j;
+    if (group[vert][0]==0)
+        return;
+    if (group[vert][0]==1)
+    {
+        k1=group[vert][1];
+        *len+=2*distance(l,0,k1);
+        return;
+    }
+    if (group[vert][0]==2)
+    {
+        k1=group[vert][1];
+        k2=group[vert][2];
+        *len+=distance(l,k1,k2)
+        +distance(l,0,k1)+distance(l,0,k2);
+        return;
+    }
+    for (i=0;i<n;i++)
+    {
+        note[i][0]=-1;
+        note[i][1]=-1;
+        l[i][3]=-1;
+        l[i][4]=0;
+        l[i][5]=-1;
+    }
+    for (i=0;i<n;i++)
+        max_count(note,l,n,i,vert);
+    c=search_start(l,n,vert);
+    while ((c!=-2)&&((fin=search_min(note,l,n,c,len,vert))!=-2))
+    {
+        optimization(note,l,n,len,c,vert);
+        optimization(note,l,n,len,fin,vert);
+        c=search_start(l,n,vert);
+    }
+/*    c=-1;
+    j=-1;
+    for (i=0;i<n;i++)
+    {
+        if (l[i][6]!=vert)
+            continue;
+        if (l[i][4]==1)
+        {
+            if (c==-1)
+                c=i;
+            else
+            {
+                j=i;
+                break;
+            }
+        }
+    }
+    *len+=distance(l,c,j);
+    l[c][4]++;
+    l[j][4]++;
+    note[c][1]=j;
+    note[j][1]=c;
+    ne=1;
+    while(ne!=0)
+    {
+        ne=0;
+        for (i=0;i<n;i++)
+        {
+            ne+=optimization(note,l,n,len,i,vert);
+ //           ne+=triangle(note,l,i,0,len);
+ //           ne+=triangle(note,l,i,1,len);
+        }
+    }*/
+}
+
 void solution(double **l,int n,int v,int cap)
 {
     int i,c,j,fin,ne;
-    int **note,*note0;
-    double res=0,*len=malloc(sizeof(double));
+    int **note,*note0,**m,**group;
+    double *len=malloc(sizeof(double));
     *len=0;
-    for (i=1;i<n;i++)
-        res+=l[i][2];
-    ne=(int)res;
-    ne/=cap;
-    if (ne%cap!=0)
-        ne++;
     note=malloc(n*sizeof(int*));
     note0=malloc(n*sizeof(int));
+    m=malloc(n*sizeof(int*));
+    group=malloc(v*sizeof(int*));
     for (i=0;i<n;i++)
     {
         note[i]=malloc(2*sizeof(int));
         note[i][0]=-1;
         note[i][1]=-1;
+        m[i]=malloc(2*sizeof(int));
+        m[i][0]=i;
+        m[i][1]=(int)l[i][2];
+    }
+    for (i=0;i<v;i++)
+    {
+        group[i]=malloc(n*sizeof(int));
+        group[i][0]=0;
+        for (j=1;j<n;j++)
+        {
+            group[i][j]=-1;
+        }
     }
     for (i=0;i<n;i++)
         note0[i]=-1;
     for (i=0;i<n;i++)
-        max_count(note,l,n,i);
-    c=search_start(l,n);
-    while ((c!=-2)&&((fin=search_min(note,l,n,c,len))!=-2))
+        max_count(note,l,n,i,-1);
+    c=search_start(l,n,-1);
+    while ((c!=-2)&&((fin=search_min(note,l,n,c,len,-1))!=-2))
     {
-//        optimization(note,l,n,len,c);
-//        optimization(note,l,n,len,fin);
-        c=search_start(l,n);
+        optimization(note,l,n,len,c,-1);
+        optimization(note,l,n,len,fin,-1);
+        c=search_start(l,n,-1);
     }
     c=-1;
     j=-1;
@@ -530,7 +629,7 @@ void solution(double **l,int n,int v,int cap)
         ne=0;
         for (i=0;i<n;i++)
         {
-            ne+=optimization(note,l,n,len,i);
+            ne+=optimization(note,l,n,len,i,-1);
             ne+=triangle(note,l,i,0,len);
             ne+=triangle(note,l,i,1,len);
         }
@@ -541,7 +640,7 @@ void solution(double **l,int n,int v,int cap)
     fin=note[0][1];
 //    printf("%d ",c);
     i=1;
-    while (i!=n)
+    while (i!=n-1)
     {
         if (note[fin][1]==c)
         {
@@ -553,7 +652,7 @@ void solution(double **l,int n,int v,int cap)
             c=fin;
             fin=note[fin][1];
         }
-//        printf("%d *%.0lf* ",c,l[c][2]);
+//        printf("%d ",c);
         i++;
     }
 //    l[c][4]--;
@@ -561,19 +660,50 @@ void solution(double **l,int n,int v,int cap)
     note0[note[0][0]]=1;
     note0[note[0][1]]=1;
     i=check_res(l,note,note0,n,v,cap);
-    c=search_edge(note,note0,l,n,len,v,cap);;
+    c=search_edge(note,note0,l,n,len,v,cap);
     if (c==1)         
-        printf("VERY SAD\n");
-    while ((c==0)&&(i!=0))
     {
-        c=search_edge(note,note0,l,n,len,v,cap);
-        i=check_res(l,note,note0,n,v,cap);
+        sort_q(0,n-1,m,1);
+        for (i=n-1;i>0;i--)
+        {
+            sort_q(0,v-1,group,0);
+            for(j=v-1;group[j][0]+m[i][1]>cap;j--);
+            for(c=1;group[j][c]!=-1;c++);
+            group[j][c]=m[i][0];
+            group[j][0]+=m[i][1];
+        }
+//        for (i=0;i<v;i++)
+//            if (group[i][0]>cap)
+//                printf("ALARM");
+//        {   
+//            printf("%d-",i);
+//            for (j=0;group[i][j]!=-1;j++)
+//                printf("%d,",group[i][j]);
+//            printf("\n");
+//        }
+        for (i=0;i<v;i++)
+        {
+            for (j=1;group[i][j]!=-1;j++)
+                l[group[i][j]][6]=i;
+            j--;
+            group[i][0]=j;
+        }
+        *len=0;
+        for (i=0;i<v;i++)
+            group_tsp(l,group,note,n,len,i);
+        printf("%.3lf\n",*len);
     }
-    if (i==-1)
-        printf("oh no\n");
     else
-        printf("yes\n");
-    printf("Result:%.3lf %d\n",*len,i);
+    {
+        while ((c==0)&&(i!=0))
+        {
+            c=search_edge(note,note0,l,n,len,v,cap);
+            i=check_res(l,note,note0,n,v,cap);
+        }
+        if (i!=0)
+            printf("oh no\n");
+        printf("%.3lf\n",*len);
+    }
 /*    if (check_cycle(note,l,n,c,j)!=1)
         printf ("FATAL ERROR\n");
     else

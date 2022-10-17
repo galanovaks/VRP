@@ -26,14 +26,14 @@ int main()
     "vrp_421_41_1","vrp_45_4_1","vrp_481_38_1","vrp_484_19_1",  
     "vrp_48_4_1"};
     FILE *f;
-//    for(j=0;j<67;j++)
-//    {
-        f=fopen(files[16],"r");
+    for(j=0;j<67;j++)
+    {
+        f=fopen(files[j],"r");
         fscanf(f,"%d %d %d",&N,&V,&c);
         list=create_list(N,f);
-        printf("%s-",files[16]);
+        printf("%s-",files[j]);
         fclose(f);
         solution(list,N,V,c);
-//    }
+    }
     return 0;
 }
