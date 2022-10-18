@@ -155,10 +155,12 @@ void swipe(int **note,int i,int c1,int c2)
     note[i][1]=c2;
 }
 
-int triangle(int **note,double **l,int i,int var,double *len)
+int triangle(int **note,double **l,int i,int var,double *len,int vert)
 {
     int c1,c2,c3,var2,res=0;
     double r1,r2;
+    if ((l[i][6]!=vert)&&(l[i][6]!=-1))
+        return 0;
     if (var==0)
         var2=1;
     else
@@ -169,6 +171,10 @@ int triangle(int **note,double **l,int i,int var,double *len)
         c2=note[c1][1];
     else
         c2=note[c1][0];
+    if (((l[c1][6]!=vert)&&(l[c1][6]!=-1))||
+        ((l[c2][6]!=vert)&&(l[c2][6]!=-1))||
+        ((l[c3][6]!=vert)&&(l[c3][6]!=-1)))
+        return 0;
     r1=distance(l,i,c3)+distance(l,c1,c2);
     r2=distance(l,i,c2)+distance(l,c1,c3);
     if (r2<r1)
@@ -493,7 +499,7 @@ void sort_q(int left,int right,int **list,int var)
         sort_q(l,right,list,var);
 }
 
-void group_tsp(double **l,int **group,int **note,int n,double *len,int vert)
+void group_tsp(double **l,int **group,int **note,int n,double *len,int vert,int var)
 {
     int k1,k2,c,fin,ne,i,j;
     if (group[vert][0]==0)
@@ -529,13 +535,13 @@ void group_tsp(double **l,int **group,int **note,int n,double *len,int vert)
         optimization(note,l,n,len,fin,vert);
         c=search_start(l,n,vert);
     }
-/*    c=-1;
+    c=-1;
     j=-1;
     for (i=0;i<n;i++)
     {
-        if (l[i][6]!=vert)
+        if ((l[i][6]!=vert)&&(l[i][6]!=-1))
             continue;
-        if (l[i][4]==1)
+        if (note[i][1]==-1)
         {
             if (c==-1)
                 c=i;
@@ -546,34 +552,177 @@ void group_tsp(double **l,int **group,int **note,int n,double *len,int vert)
             }
         }
     }
-    *len+=distance(l,c,j);
-    l[c][4]++;
-    l[j][4]++;
-    note[c][1]=j;
-    note[j][1]=c;
-    ne=1;
-    while(ne!=0)
+    if (c!=-1)
     {
-        ne=0;
-        for (i=0;i<n;i++)
+        *len+=distance(l,c,j);
+        l[c][4]++;
+        l[j][4]++;
+        note[c][1]=j;
+        note[j][1]=c;
+        optimization(note,l,n,len,c,vert);
+        optimization(note,l,n,len,j,vert);
+    }
+    if (var==1)
+    {
+    for (c=0;c<2;c++)
+    for (i=0;i<n;i++)
+    {
+        optimization(note,l,n,len,i,vert);
+        triangle(note,l,i,0,len,vert);
+        triangle(note,l,i,1,len,vert);
+    }
+    }
+}
+int opt2(int **note,int **group,double **g_opt,double **l,int cap,int n,int v)
+{
+    int i,j,c,fin,k,k1,res=0;
+    double *len,*len1;
+    len=malloc(sizeof(double));
+    len1=malloc(sizeof(double));
+    for (i=0;i<v;i++)
+    {
+        if (g_opt[i][0]==0)
+            continue;
+        for (j=0;j<v;j++)
         {
-            ne+=optimization(note,l,n,len,i,vert);
- //           ne+=triangle(note,l,i,0,len);
- //           ne+=triangle(note,l,i,1,len);
+            if (i==j)
+                continue;
+            if (group[i][0]==0)
+                break;
+            for (k=1;group[i][k]!=-1;k++)
+            {   
+//                printf("^");
+                if (group[i][0]==0)
+                    break;
+                *len=0;
+                *len1=0;
+                if (g_opt[j][0]+l[group[i][k]][2]<cap)
+                {
+//                    printf("i%d j%d k%d\n",i,j,group[i][k]);
+                    fin=group[i][k];
+                    group[i][k]=-1;
+                    for (c=k;group[i][c+1]!=-1;c++)
+                        group[i][c]=group[i][c+1];
+                    group[i][c]=-1;
+                    for (c=1;group[j][c]!=-1;c++);
+                    group[j][c]=fin;
+                    l[fin][6]=j;
+                    group[i][0]--;
+                    group[j][0]++;
+                    group_tsp(l,group,note,n,len,i,0);
+                    group_tsp(l,group,note,n,len1,j,0);
+/*                    for (k1=0;k1<v;k1++)
+                    {
+                        printf("%d-",k1);
+                        for (c=0;group[k1][c]!=-1;c++)
+                            printf("%d,",group[k1][c]);
+                        printf("\n");
+                    }*/
+                    if (*len+*len1<g_opt[i][1]+g_opt[j][1])
+                    {
+                        g_opt[i][1]=*len;
+                        g_opt[j][1]=*len1;
+                        g_opt[i][0]-=l[fin][2];
+                        g_opt[j][0]+=l[fin][2];
+                        k--;
+                        res++;
+//                        printf("OK");
+                       /* for (k1=0;k1<v;k1++)
+                        {
+                            printf("%d-",k1);
+                            for (c=0;group[k1][c]!=-1;c++)
+                                printf("%d,",group[k1][c]);
+                            printf("\n");
+                        }*/
+                    }
+                    else
+                    {
+                        for (c=1;group[j][c]!=-1;c++);
+                        k1=group[j][c-1];
+                        group[j][c-1]=-1;
+                        for (c=1;group[i][c]!=-1;c++);
+                        group[i][c]=k1;
+                        l[k1][6]=i;
+                        group[i][0]++;
+                        group[j][0]--;
+                       /* for (k1=0;k1<v;k1++)
+                        {
+                            printf("%d-",k1);
+                            for (c=0;group[k1][c]!=-1;c++)
+                                printf("%d,",group[k1][c]);
+                            printf("\n");
+                        }*/
+                    }
+                }
+            }
         }
-    }*/
+    }
+    return res;
+}
+
+int opt3(int **note,int **group,double **g_opt,double **l,int cap,int n,int v)
+{
+    int i,j,c,fin,k,k1,m,res=0;
+    double *len,*len1;
+    len=malloc(sizeof(double));
+    len1=malloc(sizeof(double));
+    for (i=0;i<v;i++)
+    {
+        if (g_opt[i][0]==0)
+            continue;
+        for (j=0;j<v;j++)
+        {
+            if ((i==j)||(g_opt[j][0]==0))
+                continue;
+            for (k=1;group[i][k]!=-1;k++)
+            {
+                for (m=1;group[j][m]!=-1;m++)
+                {
+                    *len=0;
+                    *len1=0;
+                    if ((g_opt[j][0]-l[group[j][m]][2]
+                    +l[group[i][k]][2]<cap)&&(g_opt[i][0]-
+                    l[group[i][k]][2]+l[group[j][m]][2]<cap))
+                    {
+                        fin=group[i][k];
+                        k1=group[j][m];
+                        group[i][k]=k1;
+                        group[j][m]=fin;
+                        group_tsp(l,group,note,n,len,i,0);
+                        group_tsp(l,group,note,n,len1,j,0);
+                        if (*len+*len1<g_opt[i][1]+g_opt[j][1])
+                        {
+                            g_opt[i][1]=*len;
+                            g_opt[j][1]=*len1;
+                            g_opt[i][0]-=l[fin][2]-l[k1][2];
+                            g_opt[j][0]-=l[k1][2]-l[fin][2];
+                            res++;
+                        }
+                        else
+                        {
+                            group[i][k]=fin;
+                            group[j][m]=k1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return res;
 }
 
 void solution(double **l,int n,int v,int cap)
 {
-    int i,c,j,fin,ne;
+    int i,c,j,fin,ne,k;
     int **note,*note0,**m,**group;
-    double *len=malloc(sizeof(double));
+    double *len=malloc(sizeof(double)),*len1,**g_opt;
     *len=0;
+    len1=malloc(sizeof (double));
     note=malloc(n*sizeof(int*));
     note0=malloc(n*sizeof(int));
     m=malloc(n*sizeof(int*));
     group=malloc(v*sizeof(int*));
+    g_opt=malloc(v*sizeof(double *));
     for (i=0;i<n;i++)
     {
         note[i]=malloc(2*sizeof(int));
@@ -586,7 +735,10 @@ void solution(double **l,int n,int v,int cap)
     for (i=0;i<v;i++)
     {
         group[i]=malloc(n*sizeof(int));
+        g_opt[i]=malloc(2*sizeof(double));
         group[i][0]=0;
+        g_opt[i][0]=0;
+        g_opt[i][0]=0;
         for (j=1;j<n;j++)
         {
             group[i][j]=-1;
@@ -624,14 +776,16 @@ void solution(double **l,int n,int v,int cap)
     note[c][1]=j;
     note[j][1]=c;
     ne=1;
+//    optimization(note,l,n,len,c,-1);
+//    optimization(note,l,n,len,j,-1);
     while(ne!=0)
     {
         ne=0;
         for (i=0;i<n;i++)
         {
             ne+=optimization(note,l,n,len,i,-1);
-            ne+=triangle(note,l,i,0,len);
-            ne+=triangle(note,l,i,1,len);
+            ne+=triangle(note,l,i,0,len,-1);
+            ne+=triangle(note,l,i,1,len,-1);
         }
     }
 //    for (i=0;i<n;i++)
@@ -672,26 +826,65 @@ void solution(double **l,int n,int v,int cap)
             group[j][c]=m[i][0];
             group[j][0]+=m[i][1];
         }
-//        for (i=0;i<v;i++)
-//            if (group[i][0]>cap)
-//                printf("ALARM");
-//        {   
-//            printf("%d-",i);
-//            for (j=0;group[i][j]!=-1;j++)
-//                printf("%d,",group[i][j]);
-//            printf("\n");
-//        }
+       /* for (i=0;i<v;i++)
+        {   
+            printf("%d-",i);
+            for (j=0;group[i][j]!=-1;j++)
+                printf("%d,",group[i][j]);
+            printf("\n");
+        }*/
         for (i=0;i<v;i++)
         {
             for (j=1;group[i][j]!=-1;j++)
+            {
                 l[group[i][j]][6]=i;
+                g_opt[i][0]+=l[group[i][j]][6];
+            }
             j--;
             group[i][0]=j;
         }
-        *len=0;
+  /*      for (i=0;i<v;i++)
+        {    
+            printf("%d-",i);
+            for (j=0;group[i][j]!=-1;j++)
+                printf("%d,",group[i][j]);
+            printf("\n");
+        }*/
+        *len1=0;
         for (i=0;i<v;i++)
-            group_tsp(l,group,note,n,len,i);
-        printf("%.3lf\n",*len);
+        {   
+            *len=0;
+            group_tsp(l,group,note,n,len,i,0);
+            g_opt[i][1]+=*len;
+            *len1+=*len;
+        }
+        if (n/100==1)
+            j=7;
+        else
+//            if (n/100==2)
+//                c=3;
+//            else
+                j=2;
+        fin=-1;
+        for (k=0;k<j;k++)
+        {
+        c=opt2(note,group,g_opt,l,cap,n,v);
+        if (j!=2)
+            fin=opt3(note,group,g_opt,l,cap,n,v);
+        else
+            if(c!=0)
+                c=opt2(note,group,g_opt,l,cap,n,v);
+        if (((c==0)&&(fin==0))||((c==0)&&(j==2)))
+            break;
+        }
+        *len1=0;
+        for (k=0;k<v;k++)
+        {
+            *len=0;
+            group_tsp(l,group,note,n,len,k,1);
+            *len1+=*len;
+        }
+        printf("%.3lf\n",*len1);
     }
     else
     {
@@ -700,8 +893,85 @@ void solution(double **l,int n,int v,int cap)
             c=search_edge(note,note0,l,n,len,v,cap);
             i=check_res(l,note,note0,n,v,cap);
         }
-        if (i!=0)
-            printf("oh no\n");
+        ne=0;
+        for (j=1;j<n;j++)
+        {
+            if (note0[j]==1)
+            {   
+                c=j;
+                fin=0;
+                k=1;
+                while (c!=0)
+                {   
+                    group[ne][k]=c;
+                    g_opt[ne][0]+=l[c][2];
+                    l[c][6]=ne;
+                    if (note[c][0]==fin)
+                    {
+                        fin=c;
+                        c=note[c][1];
+                    }
+                    else
+                    {
+                        fin=c;
+                        c=note[c][0];                 
+                    }
+                    k++;
+                }
+                ne++;
+           }
+           note0[fin]=-1;
+        }
+        for (k=0;k<v;k++)
+        {
+            for (j=1;group[k][j]!=-1;j++);
+            j--;
+            group[k][0]=j;
+        }
+/*        for (k=0;k<v;k++)
+        {   
+            printf("%d-",k);
+            for (j=0;group[k][j]!=-1;j++)
+                printf("%d,",group[k][j]);
+            printf("\n");
+        }*/
+        *len1=0;
+        for (k=0;k<v;k++)
+        {
+            *len=0;
+            group_tsp(l,group,note,n,len,k,0);
+            g_opt[k][1]=*len;
+            *len1+=*len;
+//            printf("%.0lf %.3lf\n",g_opt[k][0],g_opt[k][1]);
+        }
+        if (n/100==1)
+            j=7;
+        else 
+//            if(n/100==2)
+//                c=3;
+//            else
+                j=2;
+        for (k=0;k<j;k++)
+        {
+        c=opt2(note,group,g_opt,l,cap,n,v);
+        if (j!=2)
+            fin=opt3(note,group,g_opt,l,cap,n,v);
+        else
+            if (c!=0)
+                c=opt2(note,group,g_opt,l,cap,n,v);
+        if ((((c==0)&&(fin==0)))&&((c==0)&&(j==2)))
+            break;
+        }
+        *len=0;
+        for (k=0;k<v;k++)
+        {   
+            *len1=0;
+            group_tsp(l,group,note,n,len1,k,1);
+            *len+=*len1;
+//            printf("%.0lf %.3lf\n",g_opt[k][0],g_opt[k][1]);
+        }
+//        if (i!=0)
+//            printf("oh no\n");
         printf("%.3lf\n",*len);
     }
 /*    if (check_cycle(note,l,n,c,j)!=1)
