@@ -1,13 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "solver1.h"
+#include "solver.h"
 
 int main()
 {
     int N,V,c,j;
     double **list;
-    char files[68][13]={"vrp_101_10_1","vrp_101_11_1",
+    char files[67][13]={"vrp_101_10_1","vrp_101_11_1",
     "vrp_101_11_2","vrp_101_11_3","vrp_101_11_4","vrp_101_14_1",  
     "vrp_101_14_2","vrp_101_8_1","vrp_121_7_1","vrp_135_7_1",  
     "vrp_151_12_1","vrp_151_12_2","vrp_151_14_1","vrp_151_14_2",
@@ -31,7 +31,7 @@ int main()
         f=fopen(files[j],"r");
         fscanf(f,"%d %d %d",&N,&V,&c);
         list=create_list(N,f);
-        printf("%s-",files[j]);
+//        printf("%s-",files[j]);
         fclose(f);
         solution(list,N,V,c);
     }
